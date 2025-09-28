@@ -1,0 +1,11 @@
+# Nixpacks Configuration
+[phases.build]
+nixPkgs = ["nodejs-18_x", "npm"]
+cmds = ["npm ci", "npm run build"]
+
+[phases.start]
+cmd = "npm start"
+
+[variables]
+NODE_VERSION = "18"
+NPM_CONFIG_PRODUCTION = "false"
