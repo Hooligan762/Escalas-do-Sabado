@@ -1,0 +1,14 @@
+# This file forces NIXPACKS builder instead of Railpack
+# Railway should detect this as a Node.js project
+
+# Build configuration
+build:
+  - npm ci
+  - npm run build
+
+# Start configuration  
+start:
+  - npm start
+
+# Environment
+node_version: 18
