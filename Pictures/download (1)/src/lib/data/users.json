@@ -1,0 +1,98 @@
+[
+  {
+    "id": "user-admin",
+    "username": "admin",
+    "name": "Administrador",
+    "role": "admin",
+    "campus": "all",
+    "password": "password"
+  },
+  {
+    "id": "user-super-admin",
+    "username": "Full",
+    "name": "Super Administrador",
+    "role": "admin",
+    "campus": "all",
+    "password": "Full030695@7621"
+  },
+  {
+    "id": "user-1",
+    "username": "aimores",
+    "name": "Técnico Aimorés",
+    "role": "tecnico",
+    "campus": "Aimorés",
+    "password": "password"
+  },
+  {
+    "id": "user-5",
+    "username": "barreiro",
+    "name": "Técnico Barreiro",
+    "role": "tecnico",
+    "campus": "Barreiro",
+    "password": "password"
+  },
+  {
+    "id": "user-2",
+    "username": "barropreto",
+    "name": "Técnico Barro Preto",
+    "role": "tecnico",
+    "campus": "Barro Preto",
+    "password": "password"
+  },
+  {
+    "id": "user-7",
+    "username": "complexojoaopinheiro",
+    "name": "Técnico Complexo João Pinheiro",
+    "role": "tecnico",
+    "campus": "Complexo João Pinheiro",
+    "password": "password"
+  },
+  {
+    "id": "c2fe253d-17ce-40af-af7b-2916484ae552",
+    "username": "cristianomachado",
+    "name": "Técnico Cristiano Machado",
+    "role": "tecnico",
+    "campus": "Cristiano Machado",
+    "password": "password"
+  },
+  {
+    "id": "user-6",
+    "username": "guajajaras",
+    "name": "Técnico Guajajaras",
+    "role": "tecnico",
+    "campus": "Guajajaras",
+    "password": "password"
+  },
+  {
+    "id": "user-4",
+    "username": "liberdade",
+    "name": "Técnico Liberdade",
+    "role": "tecnico",
+    "campus": "Liberdade",
+    "password": "Liberdade@2025"
+  },
+  {
+    "id": "user-3",
+    "username": "linhaverde",
+    "name": "Técnico Linha Verde",
+    "role": "tecnico",
+    "campus": "Linha Verde",
+    "password": "password"
+  },
+  {
+    "id": "user-9",
+    "username": "polounabhcentro",
+    "name": "Técnico Polo UNA BH Centro",
+    "role": "tecnico",
+    "campus": "Polo UNA BH Centro",
+    "password": "password"
+  },
+  {
+    "id": "user-8",
+    "username": "rajagabaglia",
+    "name": "Técnico Raja Gabaglia",
+    "role": "tecnico",
+    "campus": "Raja Gabaglia",
+    "password": "password"
+  }
+]

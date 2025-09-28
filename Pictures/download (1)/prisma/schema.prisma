@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(uuid())
+  username String @unique
+  name     String
+  role     String // "admin" or "coordenador"
+  campus   String
+}
+
+model Campus {
+  id   String @id @default(uuid())
+  name String @unique
+}
+
+model Category {
+  id            String          @id @default(uuid())
+  name          String          @unique
+  InventoryItem InventoryItem[]
+}
+
+model Sector {
+  id            String          @id @default(uuid())
+  name          String          @unique
+  InventoryItem InventoryItem[]
+}
+
+model InventoryItem {
+  id        String   @id @default(uuid())
+  campus    String
+  setor     String
+  sala      String
+  category  String
+  brand     String
+  serial    String   @unique
+  patrimony String?
+  status    String
+  responsible String?
+  obs       String?
+  isFixed   Boolean  @default(false)
+  created   DateTime @default(now())
+  updated   DateTime @updatedAt
+
+  categoryId String
+  sectorId   String
+
+  Category Category @relation(fields: [categoryId], references: [id])
+  Sector   Sector   @relation(fields: [sectorId], references: [id])
+  AuditLog AuditLogEntry[]
+  Loan     Loan[]
+}
+
+model AuditLogEntry {
+  id        String   @id @default(uuid())
+  action    String
+  user      String
+  campus    String
+  timestamp DateTime @default(now())
+  details   String
+  itemId    String?
+  item      InventoryItem? @relation(fields: [itemId], references: [id])
+}
+
+model Loan {
+  id                 String    @id @default(uuid())
+  itemId             String
+  itemSerial         String
+  itemCategory       String
+  borrowerName       String
+  borrowerContact    String
+  loanDate           DateTime  @default(now())
+  expectedReturnDate DateTime
+  actualReturnDate   DateTime?
+  status             String // "loaned" or "returned"
+  notes              String?
+  campus             String
+  loaner             String
+  item               InventoryItem @relation(fields: [itemId], references: [id])
+}

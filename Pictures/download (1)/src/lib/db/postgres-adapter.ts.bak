@@ -1,0 +1,708 @@
+/**
+ * @fileoverview PostgreSQL database adapter.
+ * This file implements the DbAdapter interface for a PostgreSQL database.
+ */
+'use server';
+
+import { Pool } from 'pg';
+import crypto from 'crypto';
+import type { InventoryItem, AuditLogEntry, Category, Sector, Loan, User, Campus, Request as SupportRequest } from '@/lib/types';
+
+// Connection pool for PostgreSQL. Reads connection details from environment variables.
+const pool = new Pool({
+  user: process.env.POSTGRES_USER,
+  host: process.env.POSTGRES_HOST,
+  database: process.env.POSTGRES_DATABASE,
+  password: process.env.POSTGRES_PASSWORD,
+  port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
+});
+            throw error;
+        }tion getInventory(): Promise<InventoryItem[]> {
+  const res = await pool.query(`
+    SELECT 
+      i.id,
+      i.serial,
+      i.patrimony,
+      i.brand,
+      i.sala,
+      i.obs,
+      i.is_fixed,
+      i.status,
+      i.campus_id,
+      c.name as campus,
+      i.category_id,
+      cat.name as category,
+      i.setor_id,
+      s.name as setor,
+      i.responsible_id,
+      u.name as responsible,
+      i.created_at as created,
+      i.updated_at as updated
+    FROM inventory i
+    LEFT JOIN users u ON i.responsible_id = u.id
+    LEFT JOIN campus c ON i.campus_id = c.id
+    LEFT JOIN categories cat ON i.category_id = cat.id
+    LEFT JOIN sectors s ON i.setor_id = s.id
+    ORDER BY i.created_at DESC
+  `);
+  return res.rows;
+}
+
+export async function writeInventory(data: InventoryItem[]): Promise<void> {
+  // This is a placeholder to match the file-based adapter's contract.
+  // In a real app, we'd use granular insert/update/delete functions.
+  console.warn('writeInventory is a sync function and not optimized for PostgreSQL.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('TRUNCATE TABLE inventory CASCADE'); // Using TRUNCATE for efficiency
+    for (const item of data) {
+        // This assumes campus, sector, category names are unique and exist.
+        // A more robust solution would handle potential nulls from subqueries.
+        await client.query(
+            `INSERT INTO inventory (id, campus, setor, sala, category, brand, serial, patrimony, status, responsible, obs, isFixed, created, updated)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            [item.id, item.campus, item.setor, item.sala, item.category, item.brand, item.serial, item.patrimony, item.status, item.responsible, item.obs, item.isFixed, item.created, item.updated]
+        );
+    }
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error("Error in writeInventory (Postgres):", e);
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getCategories(): Promise<Category[]> {
+    const res = await pool.query('SELECT * FROM categories ORDER BY name ASC');
+    return res.rows;
+}
+
+export async function writeCategories(data: Category[]): Promise<void> {
+    console.warn('writeCategories is a sync function and not optimized for PostgreSQL.');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('TRUNCATE TABLE categories CASCADE');
+        for (const category of data) {
+            await client.query('INSERT INTO categories (id, name) VALUES ($1, $2)', [category.id, category.name]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+export async function getSectors(): Promise<Sector[]> {
+    const res = await pool.query('SELECT * FROM sectors ORDER BY name ASC');
+    return res.rows;
+}
+
+export async function writeSectors(data: Sector[]): Promise<void> {
+    console.warn('writeSectors is a sync function and not optimized for PostgreSQL.');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('TRUNCATE TABLE sectors CASCADE');
+        for (const sector of data) {
+            await client.query('INSERT INTO sectors (id, name) VALUES ($1, $2)', [sector.id, sector.name]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+export async function getCampusList(): Promise<Campus[]> {
+    const res = await pool.query('SELECT * FROM campus ORDER BY name ASC');
+    return res.rows;
+}
+
+export async function writeCampusList(data: Campus[]): Promise<void> {
+    console.warn('writeCampusList is a sync function and not optimized for PostgreSQL.');
+    const client = await pool.connect();
+     try {
+        await client.query('BEGIN');
+        await client.query('TRUNCATE TABLE campus CASCADE');
+        for (const campus of data) {
+            await client.query('INSERT INTO campus (id, name) VALUES ($1, $2)', [campus.id, campus.name]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+export async function getUsers(): Promise<User[]> {
+    console.log('Consultando usuários no banco de dados');
+    try {
+        // Consultar usuários junto com os nomes dos campus
+        const res = await pool.query(`
+            SELECT 
+                u.id, 
+                u.username, 
+                u.name, 
+                u.role, 
+                u.password,
+                u.campus_id, 
+                c.name as campus
+            FROM 
+                users u
+            LEFT JOIN 
+                campus c ON u.campus_id = c.id
+            ORDER BY 
+                u.name ASC
+        `);
+        
+        console.log(`Encontrados ${res.rows.length} usuários`);
+        if (res.rows.length > 0) {
+            console.log('Exemplo de registro de usuário:', {
+                id: res.rows[0].id,
+                username: res.rows[0].username,
+                name: res.rows[0].name,
+                role: res.rows[0].role,
+                campus_id: res.rows[0].campus_id,
+                campus: res.rows[0].campus
+            });
+        }
+        
+        // Map password to 'password' for security and ensure the campus field is present
+        return res.rows.map(u => ({ 
+            ...u, 
+            password: 'password',
+            // Garantir que temos o campo campus preenchido com o nome do campus
+            campus: u.campus || null
+        }));
+    } catch (error) {
+        console.error('Erro ao consultar usuários:', error);
+        throw error;
+    }
+}
+
+export async function writeUsers(data: User[]): Promise<void> {
+    console.warn('writeUsers is a sync function and not optimized for PostgreSQL.');
+     const client = await pool.connect();
+     try {
+        await client.query('BEGIN');
+        await client.query('TRUNCATE TABLE users CASCADE');
+        
+        for (const user of data) {
+            // Buscar o campus_id correspondente ao nome do campus
+            const campusResult = await client.query(
+                'SELECT id FROM campus WHERE name = $1',
+                [user.campus]
+            );
+            
+            let campusId = null;
+            if (campusResult.rows.length > 0) {
+                campusId = campusResult.rows[0].id;
+                console.log(`Campus encontrado para usuário ${user.username}: nome=${user.campus}, id=${campusId}`);
+            } else {
+                console.warn(`Campus não encontrado para usuário ${user.username}: ${user.campus}. Usuário será criado sem campus.`);
+            }
+            
+            // In a real app, you would HASH the password before inserting.
+            await client.query(
+                'INSERT INTO users (id, username, name, role, campus_id, password) VALUES ($1, $2, $3, $4, $5, $6)',
+                [user.id, user.username, user.name, user.role, campusId, user.password || 'password']
+            );
+        }
+        
+        await client.query('COMMIT');
+        console.log(`${data.length} usuários gravados com sucesso`);
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao gravar usuários:', e);
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+
+export async function getAuditLog(): Promise<AuditLogEntry[]> {
+  const res = await pool.query('SELECT * FROM audit_log ORDER BY timestamp DESC');
+  // The 'item' column is JSONB in postgres, so it should be parsed correctly.
+  return res.rows;
+}
+
+export async function writeAuditLog(data: AuditLogEntry[]): Promise<void> {
+  console.warn('writeAuditLog is a sync function and not optimized for PostgreSQL and is likely incorrect for append-only data.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('TRUNCATE TABLE audit_log CASCADE');
+    for (const log of data) {
+      await client.query(
+        'INSERT INTO audit_log (id, action, "user", campus, timestamp, item, details) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [log.id, log.action, log.user, log.campus, log.timestamp, log.item, log.details]
+      );
+    }
+    await client.query('COMMIT');
+  } catch(e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getLoans(): Promise<Loan[]> {
+  console.log('[getLoans] Buscando empréstimos do banco de dados...');
+  try {
+    const res = await pool.query(`
+      SELECT 
+        l.id,
+        l.inventory_id AS "itemId",
+        i.serial AS "itemSerial",
+        cat.name AS "itemCategory",
+        l.borrower_name AS "borrowerName",
+        l.borrower_contact AS "borrowerContact",
+        to_char(l.loan_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "loanDate",
+        to_char(l.expected_return_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "expectedReturnDate",
+        CASE WHEN l.actual_return_date IS NOT NULL 
+             THEN to_char(l.actual_return_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') 
+             ELSE NULL 
+        END AS "actualReturnDate",
+        l.status,
+        l.notes,
+        c.name AS campus,
+        u.name AS loaner
+      FROM loans l
+      JOIN inventory i ON i.id = l.inventory_id
+      JOIN categories cat ON cat.id = i.category_id
+      JOIN campus c ON c.id = i.campus_id
+      JOIN users u ON u.id = l.loaner_id
+      ORDER BY l.loan_date DESC
+    `);
+    
+    console.log(`[getLoans] Encontrados ${res.rows.length} empréstimos`);
+    if (res.rows.length > 0) {
+      console.log('[getLoans] Amostra do primeiro empréstimo:', JSON.stringify(res.rows[0], null, 2));
+    } else {
+      console.log('[getLoans] Nenhum empréstimo encontrado no banco de dados');
+    }
+    
+    return res.rows;
+  } catch (error) {
+    console.error('[getLoans] Erro ao buscar empréstimos:', error);
+    return [];
+  }
+}
+
+export async function writeLoans(data: Loan[]): Promise<void> {
+    console.warn('writeLoans is a sync function and not optimized for PostgreSQL.');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('TRUNCATE TABLE loans CASCADE');
+        for (const loan of data) {
+            await client.query(
+                'INSERT INTO loans (id, item_id, item_serial, item_category, borrower_name, borrower_contact, loan_date, expected_return_date, actual_return_date, status, notes, campus, loaner) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
+                [loan.id, loan.itemId, loan.itemSerial, loan.itemCategory, loan.borrowerName, loan.borrowerContact, loan.loanDate, loan.expectedReturnDate, loan.actualReturnDate, loan.status, loan.notes, loan.campus, loan.loaner]
+            );
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+export async function getRequests(): Promise<SupportRequest[]> {
+    const res = await pool.query('SELECT * FROM requests ORDER BY created_at DESC');
+    return res.rows;
+}
+
+export async function writeRequests(data: SupportRequest[]): Promise<void> {
+    console.warn('writeRequests is a sync function and not optimized for PostgreSQL.');
+     const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('TRUNCATE TABLE requests CASCADE');
+        for (const req of data) {
+            await client.query(
+                'INSERT INTO requests (id, requester_email, campus, setor, sala, details, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+                [req.id, req.requesterEmail, req.campus, req.setor, req.sala, req.details, req.status, req.createdAt, req.updatedAt]
+            );
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+export async function deleteInventoryItem(id: string) {
+  try {
+    await pool.query('DELETE FROM inventory WHERE id = $1', [id]);
+    console.log(`Item com ID ${id} deletado com sucesso.`);
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao deletar item do inventário:', error);
+    return { success: false, error: 'Falha ao deletar item.' };
+  }
+}
+
+export async function insertInventoryItem(item: Omit<InventoryItem, 'id' | 'created' | 'updated'>): Promise<InventoryItem> {
+  const now = new Date();
+  const res = await pool.query(
+    `INSERT INTO inventory (
+      serial, patrimony, brand, sala, obs, is_fixed, status, 
+      campus_id, category_id, setor_id, responsible_id, 
+      created_at, updated_at
+    )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     RETURNING *`,
+    [
+      item.serial, item.patrimony, item.brand, item.sala, item.obs, item.isFixed, item.status,
+      item.campus, item.category, item.setor, item.responsible,
+      now, now
+    ]
+  );
+  // We need to refetch to get the joined names, because RETURNING * only gives us the IDs.
+  const newId = res.rows[0].id;
+  const fetchRes = await pool.query(`
+    SELECT 
+      i.id, i.serial, i.patrimony, i.brand, i.sala, i.obs, i.is_fixed, i.status,
+      i.campus_id, c.name as campus,
+      i.category_id, cat.name as category,
+      i.setor_id, s.name as setor,
+      i.responsible_id, u.name as responsible,
+      i.created_at as created, i.updated_at as updated
+    FROM inventory i
+    LEFT JOIN users u ON i.responsible_id = u.id
+    LEFT JOIN campus c ON i.campus_id = c.id
+    LEFT JOIN categories cat ON i.category_id = cat.id
+    LEFT JOIN sectors s ON i.setor_id = s.id
+    WHERE i.id = $1
+  `, [newId]);
+
+  return fetchRes.rows[0];
+}
+
+export async function updateInventoryItem(id: string, item: Partial<Omit<InventoryItem, 'id' | 'created' | 'updated'>>): Promise<InventoryItem> {
+  const result = await pool.query(
+    `UPDATE inventory 
+     SET campus=$1, setor=$2, sala=$3, category=$4, brand=$5, serial=$6, patrimony=$7, status=$8, responsible=$9, obs=$10, isFixed=$11, updated=NOW()
+     WHERE id=$12 RETURNING *`,
+    [item.campus, item.setor, item.sala, item.category, item.brand, item.serial, item.patrimony, item.status, item.responsible, item.obs, item.isFixed, id]
+  );
+  const updatedItem = result.rows[0];
+
+  // We need to fetch the responsible name separately as the RETURNING clause won't join
+  const userRes = await pool.query('SELECT name FROM users WHERE id = $1', [updatedItem.responsible]);
+  updatedItem.responsible_name = userRes.rows[0]?.name;
+
+  return updatedItem;
+}
+
+export async function insertLoan(loan: Omit<Loan, 'id'>): Promise<Loan> {
+  console.log('insertLoan called with:', JSON.stringify(loan, null, 2));
+  
+  try {
+    // First, check if the user exists
+    const userCheck = await pool.query('SELECT id FROM users WHERE name = $1 LIMIT 1', [loan.loaner]);
+    if (userCheck.rows.length === 0) {
+      console.error('Error: Loaner not found in users table:', loan.loaner);
+      throw new Error(`Loaner user not found: ${loan.loaner}`);
+    }
+    
+    const loanerId = userCheck.rows[0].id;
+    console.log('Found loaner ID:', loanerId);
+    
+    // Insert according to schema, mapping from frontend fields
+    console.log('Inserting loan with values:', [
+      loan.itemId,
+      loan.borrowerName,
+      loan.borrowerContact,
+      loan.notes,
+      loan.status,
+      loan.loanDate,
+      loan.expectedReturnDate,
+      loanerId // Using direct ID instead of subquery for debugging
+    ]);
+    
+    const inserted = await pool.query(
+      `INSERT INTO loans (
+          inventory_id, borrower_name, borrower_contact, notes, status, loan_date, expected_return_date, loaner_id
+       ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8
+       )
+       RETURNING id
+      `,
+      [
+        loan.itemId,
+        loan.borrowerName,
+        loan.borrowerContact,
+        loan.notes,
+        loan.status,
+        loan.loanDate,
+        loan.expectedReturnDate,
+        loanerId
+      ]
+    );
+
+    if (inserted.rows.length === 0) {
+      console.error('Error: No ID returned after inserting loan');
+      throw new Error('Failed to insert loan');
+    }
+    
+    console.log('Empréstimo inserido com ID:', inserted.rows[0].id);
+    
+    const newId = inserted.rows[0].id;
+    console.log('Loan inserted with ID:', newId);
+    
+    // Fetch the created loan with all joined camelCase fields expected by the frontend
+    const res = await pool.query(
+      `SELECT 
+          l.id,
+          l.inventory_id AS "itemId",
+          i.serial AS "itemSerial",
+          cat.name AS "itemCategory",
+          l.borrower_name AS "borrowerName",
+          l.borrower_contact AS "borrowerContact",
+          to_char(l.loan_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "loanDate",
+          to_char(l.expected_return_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "expectedReturnDate",
+          CASE WHEN l.actual_return_date IS NOT NULL 
+               THEN to_char(l.actual_return_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') 
+               ELSE NULL 
+          END AS "actualReturnDate",
+          l.status,
+          l.notes,
+          c.name AS campus,
+          u.name AS loaner
+       FROM loans l
+       JOIN inventory i ON i.id = l.inventory_id
+       JOIN categories cat ON cat.id = i.category_id
+       JOIN campus c ON c.id = i.campus_id
+       JOIN users u ON u.id = l.loaner_id
+       WHERE l.id = $1
+      `,
+      [newId]
+    );
+    
+    if (res.rows.length === 0) {
+      console.error('Error: No loan found after fetching with ID:', newId);
+      throw new Error('Failed to fetch inserted loan');
+    }
+    
+    console.log('Retrieved loan data:', JSON.stringify(res.rows[0], null, 2));
+    return res.rows[0];
+  } catch (error) {
+    console.error('Error in insertLoan:', error);
+    throw error;
+  }
+}
+
+export async function returnLoan(loanId: string, returnDate: string): Promise<void> {
+    await pool.query(
+    'UPDATE loans SET actual_return_date = $1, status = $2 WHERE id = $3',
+    [returnDate, 'returned', loanId]
+    );
+}
+
+export async function insertAuditLogEntry(log: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void> {
+  // Resolve FKs according to normalized schema
+  const userRes = await pool.query('SELECT id FROM users WHERE name = $1 LIMIT 1', [log.user]);
+  const campusRes = await pool.query('SELECT id FROM campus WHERE name = $1 LIMIT 1', [log.campus]);
+  const userId = userRes.rows[0]?.id;
+  const campusId = campusRes.rows[0]?.id;
+  const inventoryId = (log.item as any)?.id ?? null;
+
+  await pool.query(
+    'INSERT INTO audit_log ("action", details, user_id, campus_id, inventory_id) VALUES ($1, $2, $3, $4, $5)',
+    [log.action, log.details, userId, campusId, inventoryId]
+  );
+}
+
+export async function insertCategory(category: Omit<Category, 'id'>): Promise<Category> {
+    const newId = crypto.randomUUID(); // Usar UUID válido
+    const newCategory: Category = { ...category, id: newId };
+    console.log('Inserindo categoria com UUID:', newId);
+    await pool.query('INSERT INTO categories (id, name) VALUES ($1, $2)', [newCategory.id, newCategory.name]);
+    return newCategory;
+}
+
+export async function updateCategory(id: string, name: string): Promise<void> {
+    await pool.query('UPDATE categories SET name = $1 WHERE id = $2', [name, id]);
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+    await pool.query('DELETE FROM categories WHERE id = $1', [id]);
+}
+
+export async function insertSector(sector: Omit<Sector, 'id'>): Promise<Sector> {
+    const newId = crypto.randomUUID(); // Usar UUID válido
+    const newSector: Sector = { ...sector, id: newId };
+    console.log('Inserindo setor com UUID:', newId);
+    await pool.query('INSERT INTO sectors (id, name) VALUES ($1, $2)', [newSector.id, newSector.name]);
+    return newSector;
+}
+
+export async function updateSector(id: string, name: string): Promise<void> {
+    await pool.query('UPDATE sectors SET name = $1 WHERE id = $2', [name, id]);
+}
+
+export async function deleteSector(id: string): Promise<void> {
+    await pool.query('DELETE FROM sectors WHERE id = $1', [id]);
+}
+
+export async function insertUser(user: Omit<User, 'id'>): Promise<User> {
+    try {
+        const newId = crypto.randomUUID(); // Usar UUID válido
+        const newUser: User = { ...user, id: newId };
+        console.log('Inserindo usuário com UUID:', newId);
+        
+        // Primeiro precisamos obter o campus_id correspondente ao nome do campus
+        const campusResult = await pool.query(
+            'SELECT id FROM campus WHERE name = $1',
+            [user.campus]
+        );
+        
+        if (campusResult.rows.length === 0) {
+            throw new Error(`Campus não encontrado com o nome: ${user.campus}`);
+        }
+        
+        const campusId = campusResult.rows[0].id;
+        console.log(`Campus encontrado: nome=${user.campus}, id=${campusId}`);
+        
+        // NOTE: In a real app, you MUST hash the password.
+        await pool.query(
+            'INSERT INTO users (id, username, name, role, campus_id, password) VALUES ($1, $2, $3, $4, $5, $6)',
+            [newUser.id, newUser.username, newUser.name, newUser.role, campusId, newUser.password || 'password']
+        );
+        
+        console.log('Usuário inserido com sucesso:', newUser.username);
+        return newUser;
+    } catch (error) {
+        console.error('Erro ao inserir usuário:', error);
+        throw error;
+    }
+}
+
+export async function updateUser(id: string, data: Partial<User>): Promise<void> {
+    try {
+        console.log(`Atualizando usuário com ID: ${id}`, data);
+        const { name, role, campus, username, password } = data;
+        
+        // Se o campus estiver sendo atualizado, precisamos obter o campus_id
+        let campusId = null;
+        if (campus) {
+            const campusResult = await pool.query(
+                'SELECT id FROM campus WHERE name = $1',
+                [campus]
+            );
+            
+            if (campusResult.rows.length > 0) {
+                campusId = campusResult.rows[0].id;
+                console.log(`Campus encontrado para atualização: nome=${campus}, id=${campusId}`);
+            } else {
+                console.warn(`Campus não encontrado: ${campus}. O usuário não será associado a um campus.`);
+            }
+        }
+        
+        // Construir a consulta SQL com base nos campos fornecidos
+        const updates = [];
+        const values = [];
+        let paramCounter = 1;
+        
+        if (name !== undefined) {
+            updates.push(`name = $${paramCounter++}`);
+            values.push(name);
+        }
+        
+        if (role !== undefined) {
+            updates.push(`role = $${paramCounter++}`);
+            values.push(role);
+        }
+        
+        if (campusId !== null) {
+            updates.push(`campus_id = $${paramCounter++}`);
+            values.push(campusId);
+        }
+        
+        if (username !== undefined) {
+            updates.push(`username = $${paramCounter++}`);
+            values.push(username);
+        }
+        
+        if (password !== undefined) {
+            updates.push(`password = $${paramCounter++}`);
+            values.push(password); // Em uma app real, deve fazer hash da senha
+        }
+        
+        if (updates.length === 0) {
+            console.log('Nenhum campo para atualizar');
+            return;
+        }
+        
+        // Adicionar o ID do usuário como último parâmetro
+        values.push(id);
+        
+        const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCounter}`;
+        console.log('Query de atualização:', query);
+        
+        await pool.query(query, values);
+        console.log(`Usuário ${id} atualizado com sucesso`);
+    } catch (error) {
+        console.error('Erro ao atualizar usuário:', error);
+        throw error;
+    }
+}
+
+export async function deleteUser(id: string): Promise<void> {
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+}
+
+export async function insertCampus(campus: Omit<Campus, 'id'>): Promise<Campus> {
+    // Usar o formato UUID adequado para o PostgreSQL
+    // O PostgreSQL espera UUIDs no formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const newId = crypto.randomUUID(); // Gera um UUID v4 válido
+    const newCampus: Campus = { ...campus, id: newId };
+    console.log('Inserindo campus com UUID:', newId);
+    
+    try {
+        await pool.query('INSERT INTO campus (id, name) VALUES ($1, $2)', [newCampus.id, newCampus.name]);
+        console.log(`Campus ${newCampus.name} inserido com sucesso, ID: ${newId}`);
+        return newCampus;
+    } catch (error) {
+        console.error(`Erro ao inserir campus ${newCampus.name}:`, error);
+        throw error;
+    }
+}
+
+export async function updateCampus(id: string, name: string): Promise<void> {
+    await pool.query('UPDATE campus SET name = $1 WHERE id = $2', [name, id]);
+}
+
+export async function deleteCampus(id: string): Promise<void> {
+    await pool.query('DELETE FROM campus WHERE id = $1', [id]);
+}
+
+export async function updateInventoryForCampusRename(oldName: string, newName: string): Promise<void> {
+    await pool.query('UPDATE inventory SET campus = $1 WHERE campus = $2', [newName, oldName]);
+}
+
+export async function updateRequestStatus(id: string, status: string): Promise<void> {
+    await pool.query('UPDATE requests SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+}
+
+export async function updateInventoryStatus(id: string, status: string): Promise<void> {
+  await pool.query('UPDATE inventory SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+}
