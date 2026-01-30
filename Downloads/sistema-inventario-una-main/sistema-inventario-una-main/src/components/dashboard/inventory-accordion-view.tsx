@@ -1,0 +1,215 @@
+"use client";
+
+import * as React from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { MoreHorizontal, Edit, Trash2, CheckCircle, AlertCircle, Wrench, Archive, PackageX, Handshake, Undo2, PlayCircle } from 'lucide-react';
+import type { InventoryItem, User } from '@/lib/types';
+import { ItemStatus } from '@/lib/types';
+
+type InventoryAccordionViewProps = {
+    inventory: InventoryItem[];
+    onEdit: (item: InventoryItem) => void;
+    onDelete: (id: string) => void;
+    onStatusChange: (id: string, status: keyof typeof ItemStatus) => void;
+    onLoan: (items: InventoryItem[]) => void;
+    onRegisterUse: (item: InventoryItem) => void;
+    onReturnFromUse: (id: string) => void;
+    onFixedChange: (id: string | number, newValue: boolean) => void;
+    user: User;
+    highlightedItemId?: string | null;
+}
+
+const getStatusStyles = (status: keyof typeof ItemStatus) => {
+    switch (status) {
+        case 'funcionando': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200';
+        case 'manutencao': return 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200';
+        case 'defeito': return 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200';
+        case 'backup': return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
+        case 'descarte': return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200';
+        case 'emprestado': return 'bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200';
+        case 'emuso': return 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200';
+    }
+};
+
+const statusIcons: Record<keyof typeof ItemStatus, React.ElementType> = {
+    funcionando: CheckCircle,
+    defeito: AlertCircle,
+    manutencao: Wrench,
+    backup: Archive,
+    descarte: PackageX,
+    emprestado: Handshake,
+    emuso: PlayCircle,
+};
+
+export default function InventoryAccordionView({ inventory, onEdit, onDelete, onStatusChange, onLoan, onRegisterUse, onReturnFromUse, onFixedChange, user, highlightedItemId }: InventoryAccordionViewProps) {
+    const [filter, setFilter] = React.useState('');
+
+    const groupedAndFilteredInventory = React.useMemo(() => {
+        const filtered = inventory.filter(item =>
+            (item.category && item.category.toLowerCase().includes(filter.toLowerCase())) ||
+            (item.serial && item.serial.toLowerCase().includes(filter.toLowerCase())) ||
+            (item.brand && item.brand.toLowerCase().includes(filter.toLowerCase()))
+        );
+
+        const grouped = filtered.reduce((acc, item) => {
+            const category = item.category || 'Sem Categoria';
+            if (!acc[category]) {
+                acc[category] = [];
+            }
+            acc[category].push(item);
+            return acc;
+        }, {} as Record<string, InventoryItem[]>);
+
+        return Object.entries(grouped)
+            .sort(([a], [b]) => a.localeCompare(b)) // Sort by category name
+            .map(([category, items]) => ({
+                category,
+                items: items.sort((a,b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+            }));
+
+    }, [inventory, filter]);
+
+    return (
+        <div className="space-y-4">
+            <Input
+                placeholder="Filtrar por categoria, S/N, marca..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="flex-grow"
+            />
+            {groupedAndFilteredInventory.length > 0 ? (
+                <Accordion type="multiple" className="w-full">
+                    {groupedAndFilteredInventory.map(({ category, items }) => (
+                        <AccordionItem value={category} key={category}>
+                            <AccordionTrigger className="hover:bg-muted p-4 rounded-md">
+                                <div className="flex justify-between w-full pr-4">
+                                    <span className="font-bold">{category}</span>
+                                    <Badge variant="secondary">{items.length} itens</Badge>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-0">
+                                <div className="border-t">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>S/N</TableHead>
+                                            <TableHead>Localização</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Fixo</TableHead>
+                                            <TableHead><span className="sr-only">Ações</span></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {items.map(item => (
+                                            <TableRow key={item.id} className={`${item.status === 'emprestado' ? 'bg-purple-50/50' : ''} ${item.status === 'emuso' ? 'bg-yellow-50/50' : ''} ${highlightedItemId === String(item.id) ? 'bg-yellow-200 ring-4 ring-yellow-500 animate-bounce shadow-lg border-2 border-yellow-600' : ''}`}>
+                                                <TableCell className="font-medium">{item.serial}</TableCell>
+                                                <TableCell>{item.setor} / {item.sala}</TableCell>
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Badge className={`cursor-pointer ${getStatusStyles(item.status)}`}>{ItemStatus[item.status]}</Badge>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>Mudar Status</DropdownMenuSubTrigger>
+                                                                <DropdownMenuPortal>
+                                                                    <DropdownMenuSubContent>
+                                                                    {(Object.keys(ItemStatus) as Array<keyof typeof ItemStatus>).map(statusKey => {
+                                                                        const Icon = statusIcons[statusKey];
+                                                                        const isDisabled = item.status === statusKey || 
+                                                                                       statusKey === 'emprestado' || 
+                                                                                       (item.status === 'emuso' || item.status === 'emprestado');
+
+                                                                        return (
+                                                                            <DropdownMenuItem key={statusKey} onClick={() => onStatusChange(String(item.id), statusKey)} disabled={isDisabled}>
+                                                                                <Icon className="mr-2 h-4 w-4" />
+                                                                                {ItemStatus[statusKey]}
+                                                                            </DropdownMenuItem>
+                                                                        )
+                                                                    })}
+                                                                    </DropdownMenuSubContent>
+                                                                </DropdownMenuPortal>
+                                                            </DropdownMenuSub>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge 
+                                                        variant={item.isFixed ? "default" : "secondary"}
+                                                        className="cursor-pointer"
+                                                        onClick={async () => {
+                                                            const newValue = !item.isFixed;
+                                                            try {
+                                                                await onFixedChange(item.id, newValue);
+                                                            } catch (error) {
+                                                                console.error('Erro ao alterar status fixo:', error);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {item.isFixed ? 'Sim' : 'Não'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                <span className="sr-only">Abrir menu</span>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => onEdit(item)} disabled={item.status === 'emprestado' || item.status === 'emuso'}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                                                            {item.status === 'emuso' ? (
+                                                                <DropdownMenuItem onClick={() => onReturnFromUse(String(item.id))}>
+                                                                    <Undo2 className="mr-2 h-4 w-4" /> Registrar Devolução
+                                                                </DropdownMenuItem>
+                                                            ) : (
+                                                                <>
+                                                                    <DropdownMenuItem onClick={() => onRegisterUse(item)} disabled={item.status !== 'funcionando' && item.status !== 'backup'}>
+                                                                        <PlayCircle className="mr-2 h-4 w-4" /> Registrar Uso
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => onLoan([item])} disabled={item.status !== 'funcionando' && item.status !== 'backup'}>
+                                                                        <Handshake className="mr-2 h-4 w-4" /> Emprestar Item
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => onDelete(String(item.id))} className="text-destructive focus:text-destructive focus:bg-destructive/10" disabled={item.status === 'emprestado' || item.status === 'emuso'}><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+            ) : (
+                <div className="text-center py-16 text-muted-foreground">
+                    <p>Nenhum resultado encontrado.</p>
+                </div>
+            )}
+        </div>
+    );
+}

@@ -1,0 +1,9 @@
+[
+  { "id": "1", "name": "Notebook" },
+  { "id": "2", "name": "Desktop" },
+  { "id": "3", "name": "Monitor" },
+  { "id": "4", "name": "Projetor" },
+  { "id": "5", "name": "Teclado" },
+  { "id": "6", "name": "Mouse" },
+  { "id": "7", "name": "Cabo HDMI" }
+]

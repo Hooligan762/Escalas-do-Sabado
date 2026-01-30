@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correção Emergencial - Campo Fixo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #ffd700;
+        }
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .button.success {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+        }
+        .button.warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .highlight {
+            background: rgba(255, 255, 0, 0.2);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Correção Emergencial</h1>
+        <h2 style="text-align: center; margin-bottom: 30px;">Problema: "Erro ao atualizar campo Fixo"</h2>
+        
+        <div class="status" id="statusDiv">
+            <h3>📊 Status Atual</h3>
+            <p id="statusText">Clique em "Diagnosticar" para verificar o sistema...</p>
+        </div>
+
+        <div class="center">
+            <button class="button" onclick="diagnosticar()">🔍 Diagnosticar Sistema</button>
+            <button class="button warning" onclick="limparDados()">🧹 Limpar Dados Corrompidos</button>
+            <button class="button success" onclick="recarregarPagina()">🔄 Recarregar Página</button>
+        </div>
+
+        <div class="log" id="logDiv" style="display: none;"></div>
+
+        <div style="margin-top: 30px; text-align: center; opacity: 0.8;">
+            <p><strong>💡 Instruções:</strong></p>
+            <p>1. Clique em "Diagnosticar" para identificar o problema</p>
+            <p>2. Se houver itens fantasma, clique em "Limpar Dados"</p>
+            <p>3. Recarregue a página e teste novamente</p>
+            <p>4. Se o erro persistir, execute <span class="highlight">fix-railway-emergency.ps1</span></p>
+        </div>
+    </div>
+
+    <script>
+        const PHANTOM_IDS = [
+            'e806ca85-2304-49f0-ac04-3cb96d026465',
+            '801bbc61-fd05-4e86-bac9-d5f24335d340'
+        ];
+
+        function log(message) {
+            const logDiv = document.getElementById('logDiv');
+            logDiv.style.display = 'block';
+            logDiv.innerHTML += message + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusText = document.getElementById('statusText');
+            const statusDiv = document.getElementById('statusDiv');
+            
+            statusText.innerHTML = message;
+            
+            // Remover classes anteriores
+            statusDiv.classList.remove('success', 'warning', 'error');
+            
+            // Adicionar nova classe baseada no tipo
+            if (type === 'success') {
+                statusDiv.style.borderLeftColor = '#2ecc71';
+            } else if (type === 'warning') {
+                statusDiv.style.borderLeftColor = '#f39c12';
+            } else if (type === 'error') {
+                statusDiv.style.borderLeftColor = '#e74c3c';
+            } else {
+                statusDiv.style.borderLeftColor = '#ffd700';
+            }
+        }
+
+        function diagnosticar() {
+            document.getElementById('logDiv').innerHTML = '';
+            log('🔍 INICIANDO DIAGNÓSTICO...');
+            log('='.repeat(40));
+
+            // Verificar localStorage
+            const inventoryData = localStorage.getItem('inventory_data');
+            if (!inventoryData) {
+                log('ℹ️ Nenhum dado de inventário encontrado');
+                updateStatus('✅ Sistema limpo - Problema pode estar no servidor', 'warning');
+                log('🔧 RECOMENDAÇÃO: Execute fix-railway-emergency.ps1');
+                return;
+            }
+
+            let inventory;
+            try {
+                inventory = JSON.parse(inventoryData);
+                log(`📊 Total de itens encontrados: ${inventory.length}`);
+            } catch (error) {
+                log('❌ DADOS CORROMPIDOS detectados!');
+                log(`Erro: ${error.message}`);
+                updateStatus('🚨 Dados corrompidos encontrados - Clique em "Limpar Dados"', 'error');
+                return;
+            }
+
+            // Procurar itens fantasma
+            const phantomItems = inventory.filter(item => PHANTOM_IDS.includes(item.id));
+            
+            if (phantomItems.length === 0) {
+                log('✅ Nenhum item fantasma encontrado no frontend');
+                updateStatus('⚠️ Frontend limpo - Problema está no servidor Railway', 'warning');
+                log('🔧 SOLUÇÃO: Reiniciar deployment Railway');
+                log('💻 Execute: .\\fix-railway-emergency.ps1');
+            } else {
+                log(`🚨 ${phantomItems.length} ITEM(S) FANTASMA ENCONTRADO(S):`);
+                
+                phantomItems.forEach((item, index) => {
+                    log(`\n${index + 1}. ID: ${item.id}`);
+                    log(`   Serial: ${item.serial || 'N/A'}`);
+                    log(`   Campus: ${item.campus || 'N/A'}`);
+                    log(`   Status: ${item.status || 'N/A'}`);
+                    log(`   Fixo: ${item.isFixed ? 'Sim' : 'Não'}`);
+                });
+
+                updateStatus(`🚨 ${phantomItems.length} item(s) fantasma encontrado(s) - Clique em "Limpar Dados"`, 'error');
+            }
+
+            log('\n📋 DIAGNÓSTICO CONCLUÍDO');
+        }
+
+        function limparDados() {
+            if (!confirm('🚨 CONFIRMAÇÃO\n\nDeseja remover os dados corrompidos?\n\nEsta ação irá:\n• Remover itens fantasma\n• Limpar localStorage\n• Limpar sessionStorage\n\nContinuar?')) {
+                return;
+            }
+
+            document.getElementById('logDiv').innerHTML = '';
+            log('🧹 INICIANDO LIMPEZA...');
+            log('='.repeat(30));
+
+            let limpezaRealizada = false;
+
+            // Limpar localStorage
+            const inventoryData = localStorage.getItem('inventory_data');
+            if (inventoryData) {
+                try {
+                    const inventory = JSON.parse(inventoryData);
+                    const phantomItems = inventory.filter(item => PHANTOM_IDS.includes(item.id));
+                    
+                    if (phantomItems.length > 0) {
+                        const cleanInventory = inventory.filter(item => !PHANTOM_IDS.includes(item.id));
+                        localStorage.setItem('inventory_data', JSON.stringify(cleanInventory));
+                        log(`✅ ${phantomItems.length} item(s) fantasma removido(s)`);
+                        log(`📊 Itens restantes: ${cleanInventory.length}`);
+                        limpezaRealizada = true;
+                    } else {
+                        log('ℹ️ Nenhum item fantasma encontrado para remover');
+                    }
+                } catch (error) {
+                    log('❌ Dados corrompidos - removendo tudo');
+                    localStorage.removeItem('inventory_data');
+                    limpezaRealizada = true;
+                }
+            }
+
+            // Limpar sessionStorage
+            if (sessionStorage.getItem('inventory_data')) {
+                sessionStorage.removeItem('inventory_data');
+                log('🧹 sessionStorage limpo');
+                limpezaRealizada = true;
+            }
+
+            // Limpar outros dados relacionados
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('inventory') || key.includes('phantom'))) {
+                    keysToRemove.push(key);
+                }
+            }
+
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                log(`🧹 Removido: ${key}`);
+                limpezaRealizada = true;
+            });
+
+            if (limpezaRealizada) {
+                log('\n✅ LIMPEZA CONCLUÍDA COM SUCESSO!');
+                updateStatus('✅ Dados corrompidos removidos - Recarregue a página', 'success');
+                
+                // Auto-reload após 3 segundos
+                let countdown = 3;
+                const interval = setInterval(() => {
+                    updateStatus(`✅ Limpeza concluída - Recarregando em ${countdown} segundos...`, 'success');
+                    countdown--;
+                    
+                    if (countdown < 0) {
+                        clearInterval(interval);
+                        window.location.reload();
+                    }
+                }, 1000);
+                
+            } else {
+                log('ℹ️ Nenhuma limpeza necessária');
+                updateStatus('ℹ️ Sistema já estava limpo - Problema pode estar no servidor', 'warning');
+            }
+        }
+
+        function recarregarPagina() {
+            if (confirm('🔄 Deseja recarregar a página agora?')) {
+                window.location.reload();
+            }
+        }
+
+        // Auto-diagnóstico ao carregar a página
+        window.addEventListener('load', function() {
+            setTimeout(diagnosticar, 1000);
+        });
+    </script>
+</body>
+</html>

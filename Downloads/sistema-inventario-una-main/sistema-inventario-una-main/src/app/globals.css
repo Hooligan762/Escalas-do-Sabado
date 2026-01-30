@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background-hsl: 0 0% 100%;
+    --foreground-hsl: 222 47% 11%;
+    --card-hsl: 0 0% 100%;
+    --card-foreground-hsl: 222 47% 11%;
+    --popover-hsl: 0 0% 100%;
+    --popover-foreground-hsl: 222 47% 11%;
+    --primary-hsl: 210 29% 29%;
+    --primary-foreground-hsl: 210 40% 98%;
+    --secondary-hsl: 204 70% 53%;
+    --secondary-foreground-hsl: 210 40% 98%;
+    --muted-hsl: 210 40% 96%;
+    --muted-foreground-hsl: 215 16% 47%;
+    --accent-hsl: 210 40% 90%;
+    --accent-foreground-hsl: 210 40% 40%;
+    --destructive-hsl: 0 84% 60%;
+    --destructive-foreground-hsl: 0 0% 98%;
+    --border-hsl: 215 20% 90%;
+    --input-hsl: 215 20% 90%;
+    --ring-hsl: 204 70% 53%;
+    --radius: 1rem;
+
+    --background: var(--background-hsl);
+    --foreground: var(--foreground-hsl);
+    --card: var(--card-hsl);
+    --card-foreground: var(--card-foreground-hsl);
+    --popover: var(--popover-hsl);
+    --popover-foreground: var(--popover-foreground-hsl);
+    --primary: var(--primary-hsl);
+    --primary-foreground: var(--primary-foreground-hsl);
+    --secondary: var(--secondary-hsl);
+    --secondary-foreground: var(--secondary-foreground-hsl);
+    --muted: var(--muted-hsl);
+    --muted-foreground: var(--muted-foreground-hsl);
+    --accent: var(--accent-hsl);
+    --accent-foreground: var(--accent-foreground-hsl);
+    --destructive: var(--destructive-hsl);
+    --destructive-foreground: var(--destructive-foreground-hsl);
+    --border: var(--border-hsl);
+    --input: var(--input-hsl);
+    --ring: var(--ring-hsl);
+    
+    --chart-1: 204 70% 53%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 38 91% 53%;
+    --chart-4: 262 80% 58%;
+    --chart-5: 340 82% 52%;
+  }
+
+  .dark {
+    --background-hsl: 222 47% 11%;
+    --foreground-hsl: 210 40% 98%;
+    --card-hsl: 222 47% 11%;
+    --card-foreground-hsl: 210 40% 98%;
+    --popover-hsl: 222 47% 11%;
+    --popover-foreground-hsl: 210 40% 98%;
+    --primary-hsl: 210 40% 98%;
+    --primary-foreground-hsl: 222 47% 11%;
+    --secondary-hsl: 217 91% 60%;
+    --secondary-foreground-hsl: 210 40% 98%;
+    --muted-hsl: 217 33% 17%;
+    --muted-foreground-hsl: 215 20% 65%;
+    --accent-hsl: 217 33% 17%;
+    --accent-foreground-hsl: 210 40% 98%;
+    --destructive-hsl: 0 63% 31%;
+    --destructive-foreground-hsl: 210 40% 98%;
+    --border-hsl: 217 33% 17%;
+    --input-hsl: 217 33% 17%;
+    --ring-hsl: 212 92% 59%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    background: linear-gradient(135deg, #cf3939 0%, #cc1212 100%);
+  }
+  
+  /* Estilos para o logo UNA */
+  .una-logo-text {
+    font-family: var(--font-montserrat), Arial, sans-serif;
+    letter-spacing: -1px;
+    font-weight: 700;
+  }
+  
+  .una-subtitle-text {
+    font-family: var(--font-roboto), Arial, sans-serif;
+    font-weight: 400;
+  }
+  
+  /* Estilos para o design de linhas azuis no canto inferior direito - reprodução exata da imagem */
+  .design-container {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 600px;
+    height: 600px;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  /* Linha vertical principal (lado direito) */
+  .design-vertical-right {
+    position: absolute;
+    width: 25px;
+    background-color: #57C5E8;
+    right: 100px;
+    top: -100px;
+    height: 500px;
+    opacity: 1;
+  }
+  
+  /* Linha vertical secundária (lado esquerdo) */
+  .design-vertical-left {
+    position: absolute;
+    width: 25px;
+    background-color: #57C5E8;
+    left: 80px;
+    bottom: -50px;
+    height: 200px;
+    opacity: 1;
+  }
+  
+  /* Linha horizontal superior */
+  .design-horizontal-top {
+    position: absolute;
+    height: 25px;
+    background-color: #57C5E8;
+    right: 100px;
+    width: 250px;
+    top: 200px;
+    opacity: 1;
+  }
+  
+  /* Linha horizontal inferior */
+  .design-horizontal-bottom {
+    position: absolute;
+    height: 25px;
+    background-color: #57C5E8;
+    right: -50px;
+    width: 400px;
+    bottom: 150px;
+    opacity: 1;
+  }
+  
+  /* Curvas para conectar as linhas */
+  .design-curve-top-right {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border: 25px solid #57C5E8;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0 100px 0 0;
+    right: 100px;
+    top: 200px;
+    opacity: 1;
+  }
+  
+  .design-curve-bottom-left {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border: 25px solid #57C5E8;
+    border-top: 0;
+    border-right: 0;
+    border-radius: 0 0 0 150px;
+    left: 80px;
+    bottom: 150px;
+    opacity: 1;
+  }
+  
+  /* OCULTAR AVATAR/CÍRCULO PRETO COMPLETAMENTE - FORÇADO */
+  [data-radix-avatar-root],
+  [data-radix-avatar-wrapper],
+  [data-radix-avatar-fallback],
+  .avatar,
+  *[class*="rounded-full"],
+  *[class*="h-10 w-10"],
+  button[class*="rounded-full"],
+  span[class*="rounded-full"],
+  div[class*="rounded-full"],
+  /* Seletor mais específico para o botão do header */
+  header button[class*="h-10"][class*="w-10"],
+  header *[class*="rounded-full"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+}

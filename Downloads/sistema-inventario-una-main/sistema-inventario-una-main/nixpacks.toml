@@ -1,0 +1,16 @@
+provider = "node"
+
+[variables]
+NPM_CONFIG_CACHE = "/tmp/npm-cache"
+NPM_CONFIG_UPDATE_NOTIFIER = "false"
+NODE_ENV = "production"
+
+[phases.build]
+cmds = [
+  "npm config set cache /tmp/npm-cache",
+  "npm ci --legacy-peer-deps --no-audit --no-fund",
+  "npm run build"
+]
+
+[phases.start]
+cmd = "npm run setup-db && npm start"

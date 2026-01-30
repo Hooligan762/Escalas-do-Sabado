@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "buildCommand": "npm install --production=false --no-audit --no-fund && npm run build"
+  },
+  "deploy": {
+    "startCommand": "node railway-connection-retry.js && node railway-fix-null-ids.js && node railway-migrate-database.js && node railway-emergency-database-fix.js && node railway-final-database-sync.js && node railway-ensure-all-campus.js && npm start"
+  },
+  "security": {
+    "vulnerabilityScanning": false
+  }
+}
+
+
+ 

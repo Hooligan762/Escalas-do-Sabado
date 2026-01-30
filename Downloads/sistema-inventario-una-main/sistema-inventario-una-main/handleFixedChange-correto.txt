@@ -1,0 +1,60 @@
+  const handleFixedChange = async (itemId: string | number, newValue: boolean) => {
+    console.log('🔧 [Dashboard] handleFixedChange chamado para ID:', itemId, 'Novo valor:', newValue);
+    
+    const itemToUpdate = inventory.find(i => i.id === itemId);
+    if (!itemToUpdate) {
+      console.error('❌ [Dashboard] Item não encontrado no estado local:', itemId);
+      toast({
+        variant: 'destructive',
+        title: 'Item não encontrado',
+        description: 'O item não foi localizado na lista atual.'
+      });
+      return;
+    }
+    
+    console.log('📝 [Dashboard] Item encontrado:', {
+      id: itemToUpdate.id,
+      serial: itemToUpdate.serial,
+      isFixedAtual: itemToUpdate.isFixed,
+      novoValor: newValue
+    });
+    
+    const updatedItem = { ...itemToUpdate, isFixed: newValue, updated: new Date().toISOString() };
+    
+    // Atualizar estado local IMEDIATAMENTE para feedback visual
+    setInventory(prev => prev.map(i => i.id === itemId ? updatedItem : i));
+    
+    // Salvar no banco EM TEMPO REAL (IGUAL AOS OUTROS CAMPUS)
+    try {
+      console.log('💾 [Dashboard] Enviando para banco...', { id: String(itemId), isFixed: newValue });
+      await updateItem(String(itemId), { isFixed: newValue });
+      console.log('✅ [Dashboard] Salvo no banco com sucesso!');
+      
+      await addAuditLogEntry('update', updatedItem, `Alterou campo "Fixo" para ${newValue ? 'Sim' : 'Não'} para o item S/N: ${updatedItem.serial}`);
+      console.log('📝 [Dashboard] Log de auditoria criado!');
+      
+      // Toast PADRÃO igual aos outros campus (SEM MENSAGEM DE "TEMPORÁRIO")
+      toast({ 
+        title: "Campo Fixo Atualizado", 
+        description: `O item ${updatedItem.serial} foi marcado como ${newValue ? 'fixo' : 'não fixo'}.` 
+      });
+      
+    } catch (error) {
+      console.error('❌ [Dashboard] Erro ao atualizar campo fixo no banco:', error);
+      console.error('🔍 [Dashboard] Detalhes do erro:', {
+        itemId,
+        newValue,
+        error: (error as Error)?.message || 'Erro desconhecido'
+      });
+      
+      // Reverter estado local em caso de erro
+      setInventory(prev => prev.map(i => i.id === itemId ? itemToUpdate : i));
+      
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar campo',
+        description: 'Não foi possível salvar a alteração no banco de dados.'
+      });
+      return;
+    }
+  };
